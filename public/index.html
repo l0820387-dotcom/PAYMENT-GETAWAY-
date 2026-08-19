@@ -1,1 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FamPay Gateway — UTR Verification API</title>
+<meta name="description" content="Automatic FamPay payment verification. Submit a UTR, get a webhook when it clears." />
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
 
+  :root {
+    --bg: #0a0e0c;
+    --panel: #101613;
+    --panel-2: #141c17;
+    --panel-border: #1e2a24;
+    --line: #263329;
+    --text: #d6e5da;
+    --text-dim: #7c9184;
+    --text-dimmer: #4d5f53;
+    --accent: #4ade80;
+    --accent-soft: rgba(74, 222, 128, 0.1);
+    --accent-dim: #1f5c3d;
+    --amber: #f5b942;
+    --red: #f2495c;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    background-image:
+      radial-gradient(circle at 20% 0%, rgba(74, 222, 128, 0.06), transparent 40%),
+      radial-gradient(circle at 100% 60%, rgba(74, 222, 128, 0.04), transparent 45%);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.5;
+    overflow-x: hidden;
+  }
+
+  a { color: inherit; }
+
+  .container { max-width: 1040px; margin: 0 auto; padding: 0 24px; }
+
+  code, .mono { font-family: var(--mono); }
+
+  /* ---------- Nav ---------- */
+  nav {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(10, 14, 12, 0.85);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--panel-border);
+  }
+  .nav-inner {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 0;
+  }
+  .brand { display: flex; align-items: center; gap: 9px; font-family: var(--mono); font-weight: 700; font-size: 15px; }
+  .brand .dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--accent);
+    box-shadow: 0 0 10px var(--accent);
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+  .nav-links { display: flex; gap: 28px; font-size: 13.5px; color: var(--text-dim); }
+  .nav-links a:hover { color: var(--accent); }
+  .nav-cta {
+    font-family: var(--mono); font-size: 12.5px; font-weight: 600;
+    background: var(--accent); color: #06120a; padding: 9px 18px; border-radius: 7px;
+    text-decoration: none; white-space: nowrap;
+  }
+  @media (max-width: 720px) { .nav-links { display: none; } }
+
+  /* ---------- Hero ---------- */
+  .hero { padding: 84px 0 56px; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-dim);
+    padding: 6px 12px; border-radius: 20px; margin-bottom: 24px;
+  }
+  h1 {
+    font-family: var(--mono); font-weight: 800; font-size: clamp(34px, 6vw, 56px);
+    letter-spacing: -0.02em; line-height: 1.05; color: #f2f7f4; max-width: 760px;
+  }
+  h1 .accent { color: var(--accent); }
+  .hero-sub {
+    margin-top: 20px; font-size: 17px; color: var(--text-dim); max-width: 560px; line-height: 1.65;
+  }
+  .hero-actions { display: flex; gap: 12px; margin-top: 32px; flex-wrap: wrap; }
+  .btn {
+    font-family: var(--mono); font-weight: 600; font-size: 13.5px;
+    padding: 13px 22px; border-radius: 8px; text-decoration: none; display: inline-flex;
+    align-items: center; gap: 8px; border: 1px solid transparent; cursor: pointer;
+    transition: transform 0.12s ease, opacity 0.15s ease;
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary { background: var(--accent); color: #06120a; }
+  .btn-ghost { background: transparent; color: var(--text); border-color: var(--line); }
+  .btn-ghost:hover { border-color: var(--accent-dim); }
+
+  .hero-stats { display: flex; gap: 32px; margin-top: 48px; flex-wrap: wrap; }
+  .stat { }
+  .stat-value { font-family: var(--mono); font-size: 22px; font-weight: 700; color: var(--accent); }
+  .stat-label { font-size: 11.5px; color: var(--text-dimmer); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px; }
+
+  /* ---------- Terminal demo (signature element) ---------- */
+  .terminal-wrap { margin-top: 56px; }
+  .terminal {
+    background: var(--panel); border: 1px solid var(--panel-border); border-radius: 12px;
+    overflow: hidden; box-shadow: 0 30px 80px -30px rgba(0,0,0,0.6);
+  }
+  .terminal-head {
+    display: flex; align-items: center; gap: 8px; padding: 12px 16px;
+    border-bottom: 1px solid var(--panel-border); background: var(--panel-2);
+  }
+  .terminal-head .tdot { width: 9px; height: 9px; border-radius: 50%; }
+  .terminal-head .t1 { background: #f2495c; }
+  .terminal-head .t2 { background: #f5b942; }
+  .terminal-head .t3 { background: #4ade80; }
+  .terminal-title { margin-left: 8px; font-family: var(--mono); font-size: 11.5px; color: var(--text-dimmer); }
+  .terminal-body { padding: 20px 22px; font-family: var(--mono); font-size: 13px; line-height: 1.8; }
+  .t-line { display: flex; gap: 10px; }
+  .t-prompt { color: var(--text-dimmer); flex-shrink: 0; }
+  .t-cmd { color: var(--text); }
+  .t-key { color: #7dd3fc; }
+  .t-str { color: var(--accent); }
+  .t-num { color: var(--amber); }
+  .t-comment { color: var(--text-dimmer); }
+  .t-out { color: var(--text-dim); white-space: pre; }
+  .blink { display: inline-block; width: 7px; height: 15px; background: var(--accent); vertical-align: middle; animation: blink 1s step-end infinite; margin-left: 2px; }
+  @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
+
+  /* ---------- Section shared ---------- */
+  section { padding: 72px 0; }
+  .section-label {
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--text-dimmer); margin-bottom: 10px;
+  }
+  h2 { font-family: var(--mono); font-weight: 700; font-size: clamp(24px, 3.4vw, 32px); color: #f2f7f4; letter-spacing: -0.01em; }
+  .section-sub { color: var(--text-dim); font-size: 15px; max-width: 520px; margin-top: 10px; line-height: 1.6; }
+
+  /* ---------- Flow (numbered - genuinely sequential) ---------- */
+  .flow { margin-top: 44px; display: flex; flex-direction: column; }
+  .flow-step { display: flex; gap: 20px; padding: 22px 0; border-top: 1px solid var(--line); }
+  .flow-step:last-child { border-bottom: 1px solid var(--line); }
+  .flow-num { font-family: var(--mono); font-size: 13px; color: var(--accent); flex-shrink: 0; width: 28px; padding-top: 2px; }
+  .flow-content h3 { font-family: var(--mono); font-size: 15.5px; color: var(--text); margin-bottom: 6px; }
+  .flow-content p { color: var(--text-dim); font-size: 13.5px; line-height: 1.6; max-width: 520px; }
+  .flow-content code { background: var(--panel-2); border: 1px solid var(--line); padding: 1px 6px; border-radius: 4px; font-size: 12px; color: var(--accent); }
+
+  /* ---------- Feature grid ---------- */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin-top: 44px; background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .card { background: var(--panel); padding: 26px; }
+  .card-icon { font-family: var(--mono); font-size: 20px; color: var(--accent); margin-bottom: 14px; }
+  .card h3 { font-size: 14.5px; color: var(--text); margin-bottom: 7px; font-weight: 600; }
+  .card p { font-size: 13px; color: var(--text-dim); line-height: 1.6; }
+  @media (max-width: 780px) { .grid { grid-template-columns: 1fr; } }
+
+  /* ---------- Endpoints ---------- */
+  .endpoint {
+    background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px;
+    padding: 18px 20px; margin-top: 14px;
+  }
+  .endpoint-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .method { font-family: var(--mono); font-weight: 700; font-size: 11px; padding: 3px 8px; border-radius: 5px; }
+  .method-get { background: rgba(125, 211, 252, 0.12); color: #7dd3fc; }
+  .method-post { background: var(--accent-soft); color: var(--accent); }
+  .endpoint-path { font-family: var(--mono); font-size: 13px; color: var(--text); }
+  .endpoint-desc { font-size: 12.5px; color: var(--text-dim); }
+
+  /* ---------- Final CTA ---------- */
+  .final-cta {
+    text-align: center; padding: 80px 24px; border-radius: 16px;
+    background: linear-gradient(180deg, var(--panel), var(--panel-2));
+    border: 1px solid var(--panel-border); margin: 0 auto; max-width: 1040px;
+    position: relative; overflow: hidden;
+  }
+  .final-cta::before {
+    content: ''; position: absolute; top: -50%; left: 50%; transform: translateX(-50%);
+    width: 600px; height: 400px; background: radial-gradient(circle, rgba(74,222,128,0.12), transparent 70%);
+  }
+  .final-cta h2 { position: relative; }
+  .final-cta p { position: relative; color: var(--text-dim); margin-top: 12px; max-width: 440px; margin-left: auto; margin-right: auto; }
+  .final-cta .btn { position: relative; margin-top: 28px; }
+
+  footer {
+    border-top: 1px solid var(--panel-border); padding: 32px 0 48px; margin-top: 40px;
+  }
+  .footer-inner { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
+  .footer-inner .mono { font-size: 12px; color: var(--text-dimmer); }
+  .footer-links { display: flex; gap: 20px; font-size: 12.5px; color: var(--text-dim); }
+  .footer-links a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="container nav-inner">
+    <div class="brand"><span class="dot"></span> FamPay Gateway</div>
+    <div class="nav-links">
+      <a href="#how">How it works</a>
+      <a href="#endpoints">API</a>
+      <a href="#features">Security</a>
+    </div>
+    <a class="nav-cta" href="#get-key" id="navCta">Get API key →</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="container">
+    <span class="eyebrow"><span>●</span> Live · matching payments in real time</span>
+    <h1>Verify FamPay payments<br/>without touching a <span class="accent">bank API.</span></h1>
+    <p class="hero-sub">Submit a UTR, we watch your inbox for the matching FamPay email, and push a webhook the moment it clears. No manual reconciliation, no polling a payment gateway that doesn't exist for FamPay.</p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="#get-key" id="heroCta">Get your API key</a>
+      <a class="btn btn-ghost" href="#endpoints">Read the docs</a>
+    </div>
+    <div class="hero-stats">
+      <div class="stat"><div class="stat-value">~30s</div><div class="stat-label">Avg. verification time</div></div>
+      <div class="stat"><div class="stat-value">AES-256</div><div class="stat-label">Credential encryption</div></div>
+      <div class="stat"><div class="stat-value">0</div><div class="stat-label">Manual UTR lookups</div></div>
+    </div>
+
+    <div class="terminal-wrap">
+      <div class="terminal">
+        <div class="terminal-head">
+          <span class="tdot t1"></span><span class="tdot t2"></span><span class="tdot t3"></span>
+          <span class="terminal-title">POST /api/verify</span>
+        </div>
+        <div class="terminal-body" id="termBody">
+          <div class="t-line"><span class="t-prompt">$</span><span class="t-cmd">curl -X POST https://your-gateway.up.railway.app/api/verify \</span></div>
+          <div class="t-line">&nbsp;&nbsp;<span class="t-cmd">-H "Authorization: Bearer <span class="t-str">fampay_live_••••••••</span>" \</span></div>
+          <div class="t-line">&nbsp;&nbsp;<span class="t-cmd">-d '{"<span class="t-key">amount</span>": <span class="t-num">70.0</span>, "<span class="t-key">utr</span>": "<span class="t-str">659564536844</span>"}'</span></div>
+          <div class="t-line" style="margin-top:10px;"><span class="t-out" id="termOut">→ 202 Accepted — status: "pending"</span></div>
+          <div class="t-line"><span class="t-out" id="termOut2" style="opacity:0;">→ <span style="color:var(--accent)">200 OK</span> — status: "success", verified: true</span></div>
+          <div class="t-line" style="margin-top: 6px;"><span class="t-prompt">$</span><span class="blink"></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section id="how">
+  <div class="container">
+    <div class="section-label">How it works</div>
+    <h2>Three steps, no dashboard required</h2>
+    <p class="section-sub">Everything happens through the API and a Telegram bot — generate keys, watch verifications, manage your account, all from chat.</p>
+
+    <div class="flow">
+      <div class="flow-step">
+        <div class="flow-num">01</div>
+        <div class="flow-content">
+          <h3>Generate a QR or collect a UTR</h3>
+          <p>Call <code>GET /api/qr</code> with a UPI ID and optional amount to get a payment QR and an <code>order_id</code> — or just collect the UTR your customer already received from their bank.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">02</div>
+        <div class="flow-content">
+          <h3>Submit for verification</h3>
+          <p>Call <code>POST /api/verify</code> with the amount and UTR. You get back a <code>txn_id</code> immediately with a <code>pending</code> status.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">03</div>
+        <div class="flow-content">
+          <h3>Get notified when it clears</h3>
+          <p>We match the UTR against your connected inbox's incoming FamPay emails. Poll <code>GET /api/verify/status/:txn_id</code> or set a webhook and get pushed the result.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="endpoints">
+  <div class="container">
+    <div class="section-label">API reference</div>
+    <h2>Four endpoints, that's the whole surface</h2>
+
+    <div class="endpoint">
+      <div class="endpoint-head"><span class="method method-get">GET</span><span class="endpoint-path">/api/qr</span></div>
+      <div class="endpoint-desc">Generate a UPI payment QR + order_id. Params: <code style="color:var(--accent)">upi</code>, <code style="color:var(--accent)">amount</code> (optional).</div>
+    </div>
+    <div class="endpoint">
+      <div class="endpoint-head"><span class="method method-post">POST</span><span class="endpoint-path">/api/verify</span></div>
+      <div class="endpoint-desc">Submit amount + UTR for verification. Returns 202 pending immediately.</div>
+    </div>
+    <div class="endpoint">
+      <div class="endpoint-head"><span class="method method-get">GET</span><span class="endpoint-path">/api/verify/status/:txn_id</span></div>
+      <div class="endpoint-desc">Poll for the current status of a submitted verification.</div>
+    </div>
+    <div class="endpoint">
+      <div class="endpoint-head"><span class="method method-get">GET</span><span class="endpoint-path">/api/history</span></div>
+      <div class="endpoint-desc">Fetch your own payment history, filterable by status.</div>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="container">
+    <div class="section-label">Under the hood</div>
+    <h2>Built so your Gmail credentials never touch plaintext</h2>
+
+    <div class="grid">
+      <div class="card">
+        <div class="card-icon">🔐</div>
+        <h3>Encrypted at rest</h3>
+        <p>Gmail App Passwords are encrypted with AES-256-GCM before storage. The raw password is never written to disk.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">#</div>
+        <h3>Hashed API keys</h3>
+        <p>Your key is shown once at generation. We only ever store its SHA-256 hash afterward.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">⧉</div>
+        <h3>No duplicate UTRs</h3>
+        <p>Each UTR can only be submitted once across the whole system — replay attempts are rejected outright.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">◎</div>
+        <h3>IP whitelisting</h3>
+        <p>Optionally lock your key to specific server IPs via a single bot command.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">↻</div>
+        <h3>Rate limited</h3>
+        <p>Per-key limits with instant Telegram alerts the moment you cross them.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">▤</div>
+        <h3>Full history</h3>
+        <p>Every verification — success, failed, expired — logged and queryable by status.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="get-key">
+  <div class="container">
+    <div class="final-cta">
+      <h2>Get your API key in under a minute</h2>
+      <p>Talk to the bot on Telegram — mobile number, UPI ID, Gmail App Password, done. Your key generates automatically at the end.</p>
+      <a class="btn btn-primary" href="#" id="botLink">Open the Telegram bot →</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container footer-inner">
+    <span class="mono">fampay-gateway · self-hosted</span>
+    <div class="footer-links">
+      <a href="#how">How it works</a>
+      <a href="#endpoints">API reference</a>
+      <a href="#features">Security</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Set this to your actual @YourBotUsername once deployed
+  const BOT_USERNAME = 'YourFamPayGatewayBot';
+  const botUrl = `https://t.me/${BOT_USERNAME}`;
+  document.getElementById('botLink').href = botUrl;
+  document.getElementById('navCta').href = botUrl;
+  document.getElementById('heroCta').href = botUrl;
+
+  // Terminal demo: reveal the "success" line after a short delay, looped
+  function runTerminalDemo() {
+    const out1 = document.getElementById('termOut');
+    const out2 = document.getElementById('termOut2');
+    out1.style.opacity = '1';
+    out2.style.opacity = '0';
+    setTimeout(() => {
+      out2.style.transition = 'opacity 0.4s ease';
+      out2.style.opacity = '1';
+    }, 1800);
+  }
+  runTerminalDemo();
+  setInterval(runTerminalDemo, 5000);
+</script>
+
+</body>
+</html>
