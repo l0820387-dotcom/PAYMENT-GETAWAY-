@@ -1,0 +1,68 @@
+{
+  "info": {
+    "name": "Payment Verification Gateway API",
+    "description": "Endpoints for submitting UTR-based payment verification, checking status, and fetching payment history.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "https://your-server-domain.com" },
+    { "key": "api_key", "value": "fampay_live_xxxxxxxxxxxxxxxxxxxx" },
+    { "key": "txn_id", "value": "txn_abcdef123456" }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/health"
+      }
+    },
+    {
+      "name": "Generate Payment QR",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{api_key}}" }],
+        "url": "{{base_url}}/api/qr?upi=yourname@fam&amount=70"
+      }
+    },
+    {
+      "name": "Submit Payment Verification",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{api_key}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"amount\": 499.00,\n  \"utr\": \"324567891234\",\n  \"reference_id\": \"order_12345\",\n  \"customer_email\": \"customer@example.com\"\n}"
+        },
+        "url": "{{base_url}}/api/verify"
+      }
+    },
+    {
+      "name": "Check Verification Status",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{api_key}}" }],
+        "url": "{{base_url}}/api/verify/status/{{txn_id}}"
+      }
+    },
+    {
+      "name": "Get Payment History (all)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{api_key}}" }],
+        "url": "{{base_url}}/api/history?limit=20&offset=0"
+      }
+    },
+    {
+      "name": "Get Payment History (success only)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{api_key}}" }],
+        "url": "{{base_url}}/api/history?status=success&limit=20&offset=0"
+      }
+    }
+  ]
+}
