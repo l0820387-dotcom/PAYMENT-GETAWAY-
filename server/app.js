@@ -13,6 +13,17 @@ function createApp() {
   const app = express();
   app.use(express.json());
 
+  // Allow browser-based clients (like the test console) to call this API.
+  // This is a test/dev gateway meant to be called from arbitrary merchant
+  // frontends, so we allow all origins here rather than a fixed whitelist.
+  app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    if (req.method === "OPTIONS") return res.sendStatus(204);
+    next();
+  });
+
   app.get("/health", (req, res) => res.json({ status: "ok", uptime: process.uptime() }));
 
   // Public landing/marketing page (no auth needed) - served from /public
